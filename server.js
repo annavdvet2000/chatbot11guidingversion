@@ -1,5 +1,10 @@
 const express = require('express');
 const cors = require('cors');
+const corsOptions = {
+	origin: 'https://chatbot11guidingversion.netlify.app',
+	methods: ['GET', 'POST'],
+	credentials: true
+};
 const dotenv = require('dotenv');
 const OpenAI = require('openai');
 const path = require('path');
@@ -216,7 +221,7 @@ class AISearchEngine {
 }
 
 const app = express();
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const openai = new OpenAI({
