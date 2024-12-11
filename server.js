@@ -2,8 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const corsOptions = {
 	origin: 'https://chatbot11guidingversion.netlify.app',
-	methods: ['GET', 'POST'],
-	credentials: true
+	methods: ['GET', 'POST', 'OPTIONS'],
+	credentials: true,
+	allowedHeaders: ['Content-Type', 'Accept', 'Origin'],
+	exposedHeaders: ['Content-Type'],
+	maxAge: 600,
+	optionsSuccessStatus: 204
 };
 const dotenv = require('dotenv');
 const OpenAI = require('openai');
