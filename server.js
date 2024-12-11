@@ -233,6 +233,16 @@ searchEngine.initialize().catch(console.error);
 
 const sessions = new Map();
 
+// Add new root route
+app.get('/', (req, res) => {
+    res.json({ message: 'API is running' });
+});
+
+// Add GET handler for chat endpoint
+app.get('/api/chat', (req, res) => {
+    res.json({ message: 'Please use POST method for chat requests' });
+});
+
 app.post('/api/chat', async (req, res) => {
     try {
         const { question, sessionId } = req.body;
@@ -295,6 +305,20 @@ Context: ${JSON.stringify(context)}`;
             status: 'error'
         });
     }
+});
+
+// Add 404 handler
+app.use((req, res) => {
+    res.status(404).json({ error: 'Route not found' });
+});
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        error: 'Something broke!',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
 });
 
 const PORT = process.env.PORT || 3000;
