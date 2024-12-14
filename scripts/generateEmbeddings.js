@@ -1,9 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const pdf = require('pdf-parse');
 const OpenAI = require('openai');
 const dotenv = require('dotenv');
 const { encode } = require('gpt-3-encoder');
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
 // Load environment variables
 dotenv.config();
@@ -29,7 +29,7 @@ class DocumentProcessor {
             const embeddings = await this.generateEmbeddings(chunks);
             
             // 4. Save embeddings and chunks
-            await this.saveEmbeddings(embeddings, chunks);
+            await this.saveEmbeddings(embeddings);
             
             console.log('Embedding generation complete!');
         } catch (error) {
@@ -40,7 +40,6 @@ class DocumentProcessor {
     async readDocuments() {
         const pdfPath = path.join(__dirname, '..', '..', 'frontend', 'assets', 'pdfs');
         const files = fs.readdirSync(pdfPath).filter(file => file.endsWith('.pdf'));
-
         const documents = [];
 
         for (const file of files) {
@@ -48,19 +47,24 @@ class DocumentProcessor {
             console.log(`Processing ${file}...`);
             
             try {
-                const dataBuffer = fs.readFileSync(filePath);
-                const pdfData = await pdf(dataBuffer);
-                const pages = pdfData.text.split(/\f/); // Split by page delimiter
-
-                pages.forEach((text, pageIndex) => {
+                // Read the PDF file
+                const data = new Uint8Array(fs.readFileSync(filePath));
+                const doc = await pdfjsLib.getDocument(data).promise;
+                
+                // Process each page
+                for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
+                    const page = await doc.getPage(pageNum);
+                    const content = await page.getTextContent();
+                    const text = content.items.map(item => item.str).join(' ');
+                    
                     documents.push({
                         text: text.trim(),
                         title: file,
-                        page: pageIndex + 1 // 1-based page numbering
+                        page: pageNum
                     });
-                });
+                }
 
-                console.log(`Processed ${file}: ${pages.length} pages`);
+                console.log(`Processed ${file}: ${doc.numPages} pages`);
             } catch (error) {
                 console.error(`Error processing ${file}:`, error);
             }
@@ -87,7 +91,7 @@ class DocumentProcessor {
                     chunks.push({
                         text: currentChunk.trim(),
                         source: doc.title,
-                        page: doc.page, // Track page number
+                        page: doc.page,
                         tokens: encode(currentChunk).length
                     });
                     currentChunk = trimmedParagraph;
@@ -100,7 +104,7 @@ class DocumentProcessor {
                 chunks.push({
                     text: currentChunk.trim(),
                     source: doc.title,
-                    page: doc.page, // Track page number
+                    page: doc.page,
                     tokens: encode(currentChunk).length
                 });
             }
@@ -154,7 +158,7 @@ class DocumentProcessor {
 
         const data = {
             embeddings: embeddings.map(e => e.embedding),
-            texts: embeddings.map(e => e.metadata.text), // Added texts array
+            texts: embeddings.map(e => e.metadata.text),
             metadata: embeddings.map(e => ({
                 source: e.metadata.source,
                 page: e.metadata.page,
