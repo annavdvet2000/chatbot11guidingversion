@@ -1,22 +1,47 @@
 const express = require('express');
 const cors = require('cors');
 const corsOptions = {
-	origin: 'https://chatbot11guidingversion.netlify.app',
-	methods: ['GET', 'POST', 'OPTIONS'],
-	credentials: true,
-	allowedHeaders: ['Content-Type', 'Accept', 'Origin'],
-	exposedHeaders: ['Content-Type'],
-	maxAge: 600,
-	optionsSuccessStatus: 204
+    origin: 'https://chatbot11guidingversion.netlify.app',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Type'],
+    maxAge: 600,
+    optionsSuccessStatus: 204
 };
 const dotenv = require('dotenv');
 const OpenAI = require('openai');
 const path = require('path');
 const fs = require('fs');
 const csv = require('csv-parse/sync');
+const { Pool } = require('pg');
 
 // Load environment variables
 dotenv.config();
+
+// PostgreSQL configuration
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
+
+// Create database table if it doesn't exist
+pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        qualtrics_id VARCHAR(255),
+        session_id VARCHAR(255),
+        role VARCHAR(10),
+        content TEXT,
+        chatbot_id VARCHAR(50),
+        timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+`).catch(console.error);
+
+// Define chatbot ID - different from the direct answers bot
+const CHATBOT_ID = 'guiding-bot';
 
 class AISearchEngine {
     constructor(openai) {
@@ -31,7 +56,6 @@ class AISearchEngine {
         try {
             const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'embeddings.json'), 'utf8'));
             
-            // Debug log to see the structure
             console.log('Data structure check:', {
                 hasEmbeddings: !!data.embeddings,
                 embeddingsLength: data.embeddings?.length,
@@ -42,7 +66,6 @@ class AISearchEngine {
                 metadataLength: data.metadata?.length
             });
 
-            // Validate data structure before assignment
             if (!data.embeddings || !Array.isArray(data.embeddings)) {
                 throw new Error('Invalid embeddings data structure');
             }
@@ -106,21 +129,17 @@ class AISearchEngine {
                 resultsByDoc[docId].highestScore = Math.max(resultsByDoc[docId].highestScore, item.score);
             });
 
-            // Convert results to final format
             return Object.values(resultsByDoc)
-                .sort((a, b) => b.highestScore - a.highestScore) // Sort documents by relevance
-                .slice(0, 2) // Limit to top 2 most relevant documents
+                .sort((a, b) => b.highestScore - a.highestScore)
+                .slice(0, 2)
                 .map(doc => {
-                    // Sort chunks by relevance score and take top 3 most relevant chunks per document
                     const topChunks = doc.chunks
                         .sort((a, b) => b.score - a.score)
                         .slice(0, 3);
 
-                    // Get unique pages from top chunks
                     const pages = [...new Set(topChunks.map(chunk => chunk.page))]
                         .sort((a, b) => a - b);
 
-                    // Generate page ranges
                     const pageRanges = this.createPageRanges(pages);
 
                     return {
@@ -237,12 +256,10 @@ searchEngine.initialize().catch(console.error);
 
 const sessions = new Map();
 
-// Add new root route
 app.get('/', (req, res) => {
     res.json({ message: 'API is running' });
 });
 
-// Add GET handler for chat endpoint
 app.get('/api/chat', (req, res) => {
     res.json({ message: 'Please use POST method for chat requests' });
 });
@@ -250,10 +267,17 @@ app.get('/api/chat', (req, res) => {
 app.post('/api/chat', async (req, res) => {
     try {
         const { question, sessionId } = req.body;
+        const qualtricsId = req.body.qualtricsId || 'unknown';
         
         if (!question) {
             return res.status(400).json({ error: 'Question is required' });
         }
+
+        // Store user's question in database
+        await pool.query(
+            'INSERT INTO chat_messages (qualtrics_id, session_id, role, content, chatbot_id) VALUES ($1, $2, $3, $4, $5)',
+            [qualtricsId, sessionId, 'user', question, CHATBOT_ID]
+        );
 
         let sessionHistory = sessions.get(sessionId) || [];
         const context = await searchEngine.findRelevantContext(question);
@@ -292,6 +316,12 @@ Context: ${JSON.stringify(context)}`;
         });
 
         let response = completion.choices[0].message.content;
+
+        // Store bot's response in database
+        await pool.query(
+            'INSERT INTO chat_messages (qualtrics_id, session_id, role, content, chatbot_id) VALUES ($1, $2, $3, $4, $5)',
+            [qualtricsId, sessionId, 'assistant', response, CHATBOT_ID]
+        );
         
         sessionHistory = [
             ...sessionHistory,
@@ -312,12 +342,25 @@ Context: ${JSON.stringify(context)}`;
     }
 });
 
-// Add 404 handler
+// Add new endpoint to get chat history
+app.get('/api/chat/history/:qualtricsId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM chat_messages WHERE qualtrics_id = $1 ORDER BY timestamp',
+            [req.params.qualtricsId]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error getting chat history:', error);
+        res.status(500).json({ error: 'Failed to get chat history' });
+    }
+});
+
 app.use((req, res) => {
     res.status(404).json({ error: 'Route not found' });
 });
 
-// Add error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ 
