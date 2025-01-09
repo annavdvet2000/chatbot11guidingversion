@@ -330,10 +330,11 @@ PREDEFINED TASKS:
    - Suggest finding more details about her documentary such as the title
 
 2. For Karin Timour and Karl Soehnlein comparison:
-   - MUST cite: Interview #14 with Karin Timour, page 6
-   - MUST cite: Karl Soehnlein's interview, page 4
+   - ALWAYS cite BOTH in this exact order:
+     First: "You can find relevant information in the transcript of Interview #14 with Karin Timour on page 6."
+     Second: "You can find relevant information in Karl Soehnlein's interview on page 4."
    - Use only broad topic label: "AIDS advocacy"
-   - Suggest finding Karl's motivation to stand for people with AIDS
+   - MUST end with: "Would you like to know where to find information about Karl's motivation to stand for people with AIDS?"
 
 For comparisons between people:
 - MUST provide BOTH interview citations
