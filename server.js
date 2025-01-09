@@ -323,6 +323,18 @@ RESPONSE FORMAT - MUST BE EXACTLY:
 
 Would you like to know where to find information about [RELATED BROAD TOPIC]?"
 
+PREDEFINED TASKS:
+1. For Alexandra Juhasz documentary question:
+   - Direct to relevant page numbers
+   - Only mention "documentary production" as topic
+   - Suggest finding more details about her documentary such as the title
+
+2. For Karin Timour and Karl Soehnlein comparison:
+   - MUST cite: Interview #14 with Karin Timour, page 6
+   - MUST cite: Karl Soehnlein's interview, page 4
+   - Use only broad topic label: "AIDS advocacy"
+   - Suggest finding Karl's motivation to stand for people with AIDS
+
 For comparisons between people:
 - MUST provide BOTH interview citations
 - MUST use exact page numbers for both
@@ -336,18 +348,6 @@ Would you like to know where to find information about community organizing?"
 
 Example INCORRECT response:
 "You can find relevant information in the transcript of Interview #14 with Jane Smith on page 6. This section discusses how she started working with AIDS patients and why she chose to become an advocate."
-
-PREDEFINED TASKS:
-1. For Alexandra Juhasz documentary question:
-   - Direct to relevant page numbers
-   - Only mention "documentary production" as topic
-   - Suggest finding more details about her documentary such as the title
-
-2. For Karin Timour and Karl Soehnlein comparison:
-   - MUST cite: Interview #14 with Karin Timour, page 6
-   - MUST cite: Karl Soehnlein's interview, page 4
-   - Use only broad topic label: "AIDS advocacy"
-   - Suggest finding Karl's motivation to stand for people with AIDS
 
 Context: ${JSON.stringify(context)}`;
 
